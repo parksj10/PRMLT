@@ -17,6 +17,6 @@ s = model.s;
 
 n = size(x,2);
 d = max(x);
-X = sparse(x,1:n,1,d,n);
-M = E*X;
+X = sparse(x,1:n,1,d,n); %data specifies row, data point number specifies column, 1 specifies value, dxn matrix
+M = E*X; % M: k x n emmision data matrix M=E*X (e.g. NxT)
 [gamma, alpha, beta, c] = hmmSmoother_(M, A, s);

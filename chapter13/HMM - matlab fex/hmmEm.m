@@ -7,24 +7,19 @@ function [model, llh] = hmmEm(x, init)
 %   model: trained model structure
 %   llh: loglikelihood
 % Written by Mo Chen (sth4nth@gmail.com).
-n = size(x,2);
-d = max(x);
-X = sparse(x,1:n,1,d,n);
 
-if isstruct(init)   % init with a model
-    A = init.A;
-    E = init.E;
-    s = init.s;
-elseif numel(init) == 1  % random init with latent k
-    k = init;
-    A = normalize(rand(k,k),2);
-    E = normalize(rand(k,d),2);
-    s = normalize(rand(k,1),1);
-end
+% init with a model
+A = init.A;
+E = init.E;
+s = init.s;
+
+d = size(E,2); %M
+n = size(x,2); %T
+X = sparse(x+1,1:n,1,d,n); %+1 to account for matlab 1 indexing (i.e. row 1 is for 0 cts)
 M = E*X;
 
 tol = 1e-4;
-maxIter = 100;
+maxIter = 10;
 llh = -inf(1,maxIter);
 for iter = 2:maxIter
 %     E-step

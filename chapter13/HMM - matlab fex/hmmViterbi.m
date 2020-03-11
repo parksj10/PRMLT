@@ -12,7 +12,7 @@ E = model.E;
 s = model.s;
 
 n = size(x,2);
-d = max(x);
-X = sparse(x,1:n,1,d,n);
+d = size(E,2); %M
+X = sparse(x+1,1:n,1,d,n); %+1 to account for matlab 1 indexing (i.e. row 1 is for 0 cts)
 M = E*X;
 z = hmmViterbi_(M, A, s);
