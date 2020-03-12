@@ -36,7 +36,9 @@ function [opt, modelO, llh, viterbi] = hmmF(varargin)
 % Written by Josh Parks.
 % Core algorithm adapted from Mo Chen (sth4nth@gmail.com), 
 % Bishop, C. M. Pattern Recognition and Machine Learning. (Springer, 2011)
+debug = true;
 
+if debug == false
 %return help for no args
 if nargin==0 && nargout==0, help hmmF, return, end
 
@@ -141,14 +143,54 @@ else
     end
 end
 
+else % debug
+    
+opt.N = 4;
+opt.M = 171;
+opt.bin = 1e-5;
+opt.a11 = 0.9999999;
+opt.aii = 0.8;
+opt.lambda1 = 1;
+opt.lambda2 = 3;
+%     %static definitions of A, E, and s for clarity
+%     opt.model.A = [a11      1-aii   0       0       ;
+%                    0        aii     1-aii   0       ;
+%                    0        0       aii     1-aii   ;
+%                    1-aii    0       0       aii     ];          
+%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.lambda1);
+%                    poisspdf(0:1:opt.Omax, opt.lambda2);
+%                    poisspdf(0:1:opt.Omax, opt.lambda2);
+%                    poisspdf(0:1:opt.Omax, opt.lambda2)];
+%     opt.model.s = [a11;
+%                    1-a11/(N-1)
+%                    1-a11/(N-1)
+%                    1-a11/(N-1)]; %assume column stochastic (sums to 1)
+
+opt.model.A = eye([opt.N opt.N]).*opt.aii + ...
+              circshift(eye([opt.N opt.N]),-1).*(1-opt.aii);
+opt.model.A(1,1) = opt.a11;
+%E matrix should be NxM, so fill with poisson photon statistics for
+%number of states (N) rows, given the average rate, set non BG to rate2
+opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.lambda1),...
+            ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.lambda2));
+opt.model.s = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
+options = opt;
+data = readNPY('002_NP-Crstd@1E7npsml.npy')';
+
+end
+
 %save run options for output
 opt = options;
 
 %run baum-welch (EM) optimization
 [modelO, llh] = hmmEm(data,opt.model);
+[modelO.A, modelO.E] = hmmtrain(data,opt.model.A,opt.model.E);
 
 %run viterbi decoding
 viterbi = hmmViterbi(data,modelO);
 
+
+    
+    
 end %hmmF
 
