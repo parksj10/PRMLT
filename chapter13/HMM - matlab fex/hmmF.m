@@ -22,9 +22,9 @@ function [opt, modelO, llh, viterbi] = hmmF(varargin)
 % 'bin'             {1e-5}          Bin time, in seconds
 % 'a11'             {0.9999999}     Initial guess at staying background
 % 'aii'             {0.8}           Initial guess at staying in a given state
-% 'lambda1'         {1}          	Initial guess at rate 1, i.e. background
+% 'rate1'           {1}          	Initial guess at rate 1, i.e. background
 %                                       count rate per bin (mean)
-% 'lambda2'         {3}             Initial guess at rate 2, i.e. signal
+% 'rate2'         {3}             Initial guess at rate 2, i.e. signal
 %                                       count rate per bin (mean)
 % 'model'           {model.A = A;   A = A = Transition probability matrix -
 %                                       NxN
@@ -52,17 +52,17 @@ if nargin==0 || (nargin==1 && strcmpi('default',varargin(1)))
     opt.bin = 1e-5;
     opt.a11 = 0.9999999;
     opt.aii = 0.8;
-    opt.lambda1 = 1;
-    opt.lambda2 = 3;
+    opt.rate1 = 1;
+    opt.rate2 = 3;
 %     %static definitions of A, E, and s for clarity
 %     opt.model.A = [a11      1-aii   0       0       ;
 %                    0        aii     1-aii   0       ;
 %                    0        0       aii     1-aii   ;
 %                    1-aii    0       0       aii     ];          
-%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.lambda1);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2)];
+%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.rate1);
+%                    poisspdf(0:1:opt.Omax, opt.rate2);
+%                    poisspdf(0:1:opt.Omax, opt.rate2);
+%                    poisspdf(0:1:opt.Omax, opt.rate2)];
 %     opt.model.s = [a11;
 %                    1-a11/(N-1)
 %                    1-a11/(N-1)
@@ -73,8 +73,8 @@ if nargin==0 || (nargin==1 && strcmpi('default',varargin(1)))
     opt.model.A(1,1) = opt.a11;
     %E matrix should be NxM, so fill with poisson photon statistics for
     %number of states (N) rows, given the average rate, set non BG to rate2
-    opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.lambda1),...
-                ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.lambda2));
+    opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
+                ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.rate2));
     opt.model.s = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
    return
 
@@ -97,8 +97,8 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
         elseif strncmp(name,'bin',1), opt.bin           = value;
         elseif strncmp(name,'a11',1), opt.a11           = value;
         elseif strncmp(name,'aii',1), opt.aii           = value;
-        elseif strncmp(name,'lambda1',1), opt.lambda1   = value;
-        elseif strncmp(name,'lambda2',1), opt.lambda2   = value;
+        elseif strncmp(name,'rate1',1), opt.rate1       = value;
+        elseif strncmp(name,'rate2',1), opt.rate2       = value;
         elseif strncmp(name,'model',1), opt.model       = value;
         else   disp(['Unknown Parameter Name --> ' name])
         end
@@ -109,7 +109,7 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %       Pairs of Options
 elseif ischar(varargin{1})  % check for Options=hmmF('Name',Value,...)
-   Pnames=char('N','M','bin','a11','aii','lambda1','lambda2','model');
+   Pnames=char('N','M','bin','a11','aii','rate1','rate2','model');
    if strncmpi(varargin{1},Pnames,length(varargin{1}))
       opt=hmmF('default');  % get default values
       opt=hmmF(opt,varargin{:});
@@ -150,17 +150,17 @@ opt.M = 171;
 opt.bin = 1e-5;
 opt.a11 = 0.9999999;
 opt.aii = 0.8;
-opt.lambda1 = 1;
-opt.lambda2 = 3;
+opt.rate1 = 1;
+opt.rate2 = 3;
 %     %static definitions of A, E, and s for clarity
 %     opt.model.A = [a11      1-aii   0       0       ;
 %                    0        aii     1-aii   0       ;
 %                    0        0       aii     1-aii   ;
 %                    1-aii    0       0       aii     ];          
-%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.lambda1);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2);
-%                    poisspdf(0:1:opt.Omax, opt.lambda2)];
+%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.rate1);
+%                    poisspdf(0:1:opt.Omax, opt.rate2);
+%                    poisspdf(0:1:opt.Omax, opt.rate2);
+%                    poisspdf(0:1:opt.Omax, opt.rate2)];
 %     opt.model.s = [a11;
 %                    1-a11/(N-1)
 %                    1-a11/(N-1)
@@ -171,8 +171,8 @@ opt.model.A = eye([opt.N opt.N]).*opt.aii + ...
 opt.model.A(1,1) = opt.a11;
 %E matrix should be NxM, so fill with poisson photon statistics for
 %number of states (N) rows, given the average rate, set non BG to rate2
-opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.lambda1),...
-            ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.lambda2));
+opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
+            ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.rate2));
 opt.model.s = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
 options = opt;
 data = readNPY('002_NP-Crstd@1E7npsml.npy')';
@@ -183,14 +183,12 @@ end
 opt = options;
 
 %run baum-welch (EM) optimization
-[modelO, llh] = hmmEm(data,opt.model);
-[modelO.A, modelO.E] = hmmtrain(data,opt.model.A,opt.model.E);
+% [modelO, llh] = hmmEm(data,opt.model);
+% [modelO.A, modelO.E] = hmmtrain(data,opt.model.A,opt.model.E);
 
 %run viterbi decoding
-viterbi = hmmViterbi(data,modelO);
-
-
-    
-    
+% viterbi = hmmViterbi(data,modelO);
+% [viterbi, logP] = hmmViterbi(data,modelO.A,modelO.B,modelO.s);
+[viterbi, logP] = hmmViterbi(data,opt.A,opt.E,opt.s);
 end %hmmF
 
