@@ -1,4 +1,4 @@
-function [S, logP] = hmmViterbi_(O, A, B, s)
+function [S, logP] = hmmViterbi_(O, lambda)
 % Implmentation function of Viterbi algorithm. 
 % Input:
 %   O: 1 x T observation sequence
@@ -9,20 +9,25 @@ function [S, logP] = hmmViterbi_(O, A, B, s)
 %   z: 1 x n latent state
 %   p: 1 x n probability
 % Written by Josh Parks
-k = size(A,1);
-n = numel(O);
+A = lambda.A;
+B = lambda.B;
+pi = lambda.pi;
+N = size(A,1);
+T = numel(O);
 logA = log(A);
 logB = log(B);
-P = log(s(:))+logB(:,O(1));
-psi = zeros(k,n);
-delta = zeros(k,n);
-S = zeros(1,n);
-for t = 2:n
-    for i = 1:k
+P = log(pi(:))+logB(:,O(1));
+psi = zeros(N,T);
+delta = zeros(N,T); %actually this is log(delta) --> phi, but leave as delta for clarity
+S = zeros(1,T);
+
+% decode all time points
+for t = 2:T
+    for i = 1:N
         % avoid max with loop
         delta_max = -inf;
         psi_max = 0;
-        for j = 1:k
+        for j = 1:N
             delta_temp = P(j) + logA(i,j);
             if delta_temp > delta_max
                 delta_max = delta_temp;
@@ -40,10 +45,10 @@ end
 %decide final state from max P
 [logP, s_T] = max(P);
 % Now back trace through the model
-S(n) = s_T;
+S(T) = s_T;
 for t = T-1:-1:1
-    S(t) = Psi(S(t+1),t+1);
-    if psi(count) == 0
+    S(t) = psi(S(t+1),t+1);
+    if psi(S(t+1),t+1) == 0
         error(message('stats:hmmviterbi:ZeroTransitionProbability', psi(t+1)));
     end
 end

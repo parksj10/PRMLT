@@ -1,4 +1,4 @@
-function [opt, modelO, llh, viterbi] = hmmF(varargin)
+function [opt, lambda, llh, viterbi] = hmmF(varargin)
 %HMMF - Fluxus implementation of HMM for photon data
 % Input:
 %   data - vector of binned data
@@ -12,30 +12,32 @@ function [opt, modelO, llh, viterbi] = hmmF(varargin)
 %         Options = LMFnlsq('Name',Value, ... ), or updating the Options
 %                   set by calling
 %         Options = LMFnlsq(Options,'Name',Value, ...).
-% Name   Values {default}           Description
-% 'N'               {4}          	Number of states (including BG state)
-% 'M'               {171}         	Number of observation symbols
-%                                   maximum possible rate for observation - 1, 
-%                                   e.g. max photon per bin - 1
-%                                       {v_k} = {0,1,2,...,Omax}
-%                                   *** include zero in vk -- max rate is 170
-% 'bin'             {1e-5}          Bin time, in seconds
-% 'a11'             {0.9999999}     Initial guess at staying background
-% 'aii'             {0.8}           Initial guess at staying in a given state
-% 'rate1'           {1}          	Initial guess at rate 1, i.e. background
-%                                       count rate per bin (mean)
-% 'rate2'         {3}             Initial guess at rate 2, i.e. signal
-%                                       count rate per bin (mean)
-% 'model'           {model.A = A;   A = A = Transition probability matrix -
+% Name   Values {default}               Description
+% 'N'               {4}                 Number of states (including BG state)
+% 'M'               {171}               Number of observation symbols
+%                                       maximum possible rate for observation - 1, 
+%                                       e.g. max photon per bin - 1
+%                                           {v_k} = {0,1,2,...,Omax}
+%                                       *** include zero in vk -- max rate is 170
+% 'bin'             {1e-5}              Bin time, in seconds
+% 'a11'             {0.9999999}         Initial guess at staying background
+% 'aii'             {0.8}               Initial guess at staying in a given state
+% 'rate1'           {1}                 Initial guess at rate 1, i.e. background
+%                                           count rate per bin (mean)
+% 'rate2'           {3}                 Initial guess at rate 2, i.e. signal
+%                                           count rate per bin (mean)
+% 'maxIter'         {10}                Initial guess at staying background
+% 'tol'             {1e-9}               Minimum step between EM steps
+%                                           before finishing
+% 'lambda'          {lambda.A = A;      A = Transition probability matrix -
 %                                       NxN
-%                    model.E = E;   E = b = Emission probability matrix -
+%                   lambda.B = B;       B = Emission probability matrix -
 %                                       NxM
-%                    model.s = s;}  s = pi = initial probability vector
+%                   lambda.pi = pi;}    pi = initial probability vector
 %                                       Nx1 (should technically be 1xN,
 %                                       keep convention of original author)
 % Written by Josh Parks.
-% Core algorithm adapted from Mo Chen (sth4nth@gmail.com), 
-% Bishop, C. M. Pattern Recognition and Machine Learning. (Springer, 2011)
+
 debug = true;
 
 if debug == false
@@ -54,28 +56,31 @@ if nargin==0 || (nargin==1 && strcmpi('default',varargin(1)))
     opt.aii = 0.8;
     opt.rate1 = 1;
     opt.rate2 = 3;
+    opt.maxIter = 10;
+    opt.tol = 1e-9;
 %     %static definitions of A, E, and s for clarity
-%     opt.model.A = [a11      1-aii   0       0       ;
+%     opt.lambda.A = [a11      1-aii   0       0       ;
 %                    0        aii     1-aii   0       ;
 %                    0        0       aii     1-aii   ;
 %                    1-aii    0       0       aii     ];          
-%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.rate1);
+%     opt.lambda.B = [poisspdf(0:1:opt.Omax, opt.rate1);
 %                    poisspdf(0:1:opt.Omax, opt.rate2);
 %                    poisspdf(0:1:opt.Omax, opt.rate2);
 %                    poisspdf(0:1:opt.Omax, opt.rate2)];
-%     opt.model.s = [a11;
+%     opt.lambda.pi = [a11;
 %                    1-a11/(N-1)
 %                    1-a11/(N-1)
 %                    1-a11/(N-1)]; %assume column stochastic (sums to 1)
 
-    opt.model.A = eye([opt.N opt.N]).*opt.aii + ...
+    opt.lambda.A = eye([opt.N opt.N]).*opt.aii + ...
                   circshift(eye([opt.N opt.N]),-1).*(1-opt.aii);
-    opt.model.A(1,1) = opt.a11;
-    %E matrix should be NxM, so fill with poisson photon statistics for
+    opt.lambda.A(1,1) = opt.a11;
+    opt.lambda.A(1,2) = 1-opt.a11;
+    %B matrix should be NxM, so fill with poisson photon statistics for
     %number of states (N) rows, given the average rate, set non BG to rate2
-    opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
+    opt.lambda.B = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
                 ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.rate2));
-    opt.model.s = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
+    opt.lambda.pi = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
    return
 
 %   Options = hmmF(Options,name,value,...);
@@ -85,7 +90,7 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
     if ~isfield(varargin{1},'Jacobian')
         error('Options Structure not Correct for hmmF.')
     end
-    xf=varargin{1};          %   Options
+    opt=varargin{1};          %   Options
     for i=2:2:nargin-1
         name=varargin{i};    %   option to be updated
         if ~ischar(name)
@@ -94,12 +99,14 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
         value=varargin{i+1}; %   value of the option
         if     strncmp(name,'N',1), opt.N               = value;
         elseif strncmp(name,'M',1), opt.M               = value;
-        elseif strncmp(name,'bin',1), opt.bin           = value;
-        elseif strncmp(name,'a11',1), opt.a11           = value;
-        elseif strncmp(name,'aii',1), opt.aii           = value;
-        elseif strncmp(name,'rate1',1), opt.rate1       = value;
-        elseif strncmp(name,'rate2',1), opt.rate2       = value;
-        elseif strncmp(name,'model',1), opt.model       = value;
+        elseif strncmp(name,'bin',3), opt.bin           = value;
+        elseif strncmp(name,'a11',3), opt.a11           = value;
+        elseif strncmp(name,'aii',3), opt.aii           = value;
+        elseif strncmp(name,'rate1',5), opt.rate1       = value;
+        elseif strncmp(name,'rate2',5), opt.rate2       = value;
+        elseif strncmp(name,'maxIter',7), opt.maxIter   = value;
+        elseif strncmp(name,'tol',3), opt.tol           = value;
+        elseif strncmp(name,'lambda',5), opt.lambda       = value;
         else   disp(['Unknown Parameter Name --> ' name])
         end
     end
@@ -109,7 +116,7 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %       Pairs of Options
 elseif ischar(varargin{1})  % check for Options=hmmF('Name',Value,...)
-   Pnames=char('N','M','bin','a11','aii','rate1','rate2','model');
+   Pnames=char('N','M','bin','a11','aii','rate1','rate2','lambda','maxIter','tol');
    if strncmpi(varargin{1},Pnames,length(varargin{1}))
       opt=hmmF('default');  % get default values
       opt=hmmF(opt,varargin{:});
@@ -152,43 +159,41 @@ opt.a11 = 0.9999999;
 opt.aii = 0.8;
 opt.rate1 = 1;
 opt.rate2 = 3;
-%     %static definitions of A, E, and s for clarity
-%     opt.model.A = [a11      1-aii   0       0       ;
-%                    0        aii     1-aii   0       ;
-%                    0        0       aii     1-aii   ;
-%                    1-aii    0       0       aii     ];          
-%     opt.model.E = [poisspdf(0:1:opt.Omax, opt.rate1);
-%                    poisspdf(0:1:opt.Omax, opt.rate2);
-%                    poisspdf(0:1:opt.Omax, opt.rate2);
-%                    poisspdf(0:1:opt.Omax, opt.rate2)];
-%     opt.model.s = [a11;
-%                    1-a11/(N-1)
-%                    1-a11/(N-1)
-%                    1-a11/(N-1)]; %assume column stochastic (sums to 1)
+opt.maxIter = 10;
+opt.tol = 1e-9;
 
-opt.model.A = eye([opt.N opt.N]).*opt.aii + ...
+opt.lambda.A = eye([opt.N opt.N]).*opt.aii + ...
               circshift(eye([opt.N opt.N]),-1).*(1-opt.aii);
-opt.model.A(1,1) = opt.a11;
-%E matrix should be NxM, so fill with poisson photon statistics for
+opt.lambda.A(1,1) = opt.a11;
+opt.lambda.A(1,2) = 1-opt.a11;
+%B matrix should be NxM, so fill with poisson photon statistics for
 %number of states (N) rows, given the average rate, set non BG to rate2
-opt.model.E = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
+opt.lambda.B = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
             ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.rate2));
-opt.model.s = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
+opt.lambda.pi = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
 options = opt;
 data = readNPY('002_NP-Crstd@1E7npsml.npy')';
+data = data + 1; % first state is BG, i.e 0 counts
 
-end
+end % debug check
 
-%save run options for output
+%% matlab index change
+data = data + 1; % +1 because of matlab 1 indexing!!!!!!!!!!!!!!!!!!!!!!
+
+%% save run options for output
 opt = options;
 
-%run baum-welch (EM) optimization
-% [modelO, llh] = hmmEm(data,opt.model);
-% [modelO.A, modelO.E] = hmmtrain(data,opt.model.A,opt.model.E);
+% run baum-welch (EM) optimization
+% [lambdaO, llh] = hmmEm(data,opt.lambda);
+% [lambdaO.A, lambdaO.E] = hmmtrain(data,opt.lambda.A,opt.lambda.B);
+[lambda, llh] = hmmEM(data, opt.lambda, opt.maxIter, opt.tol);
 
-%run viterbi decoding
-% viterbi = hmmViterbi(data,modelO);
-% [viterbi, logP] = hmmViterbi(data,modelO.A,modelO.B,modelO.s);
-[viterbi, logP] = hmmViterbi(data,opt.A,opt.E,opt.s);
+% run viterbi decoding
+% viterbi = hmmViterbi(data,lambdaO);
+% [viterbi, logP] = hmmViterbi(data,lambdaO.A,lambdaO.B,lambdaO.pi);
+[viterbi, logP] = hmmViterbi_(data,opt.lambda);
+
+stop;
+
 end %hmmF
 
