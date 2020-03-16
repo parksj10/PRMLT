@@ -34,6 +34,7 @@ for Q = 1:maxIter
         pi(i) = gamma(i,1);
     end
 
+    tic
     % re-estimate A
     for i = 1:N
         denom = 0;
@@ -84,6 +85,9 @@ for Q = 1:maxIter
     elseif Q ~=1 && (llh(Q) < llh(Q-1) || abs(-llh(Q) + llh(Q-1)) <= tol)
         return;
     end
+    
+    rt = toc;
+    fprintf('Baum Welch took %f seconds on interation %d \n', rt, Q)
     
 end %iter
 

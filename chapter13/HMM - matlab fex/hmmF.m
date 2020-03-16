@@ -173,7 +173,6 @@ opt.lambda.B = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
 opt.lambda.pi = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
 options = opt;
 data = readNPY('002_NP-Crstd@1E7npsml.npy')';
-data = data + 1; % first state is BG, i.e 0 counts
 
 end % debug check
 
@@ -191,7 +190,7 @@ opt = options;
 % run viterbi decoding
 % viterbi = hmmViterbi(data,lambdaO);
 % [viterbi, logP] = hmmViterbi(data,lambdaO.A,lambdaO.B,lambdaO.pi);
-[viterbi, logP] = hmmViterbi_(data,opt.lambda);
+[viterbi, logP] = hmmViterbi_(data,lambda);
 
 stop;
 
