@@ -177,7 +177,7 @@ data = readNPY('002_NP-Crstd@1E7npsml.npy')';
 end % debug check
 
 %% matlab index change
-data = data + 1; % +1 because of matlab 1 indexing!!!!!!!!!!!!!!!!!!!!!!
+data = data + 1; 
 
 %% save run options for output
 opt = options;
@@ -192,6 +192,7 @@ opt = options;
 % [viterbi, logP] = hmmViterbi(data,lambdaO.A,lambdaO.B,lambdaO.pi);
 [viterbi, logP] = hmmViterbi_(data,lambda);
 
+%note the parameter of the poissons in B is found by sum(B(i,:).*[0:1:M-1])
 stop;
 
 end %hmmF
