@@ -53,7 +53,6 @@ S(T) = s_T;
 for t = T-1:-1:1
     S(t) = psi(S(t+1),t+1);
     if psi(S(t+1),t+1) == 0
-        error(message('stats:hmmviterbi:ZeroTransitionProbability', psi(t+1)));
+        fprintf('Error: transition probability equals 0, needs more input data')
     end
 end
-stop;

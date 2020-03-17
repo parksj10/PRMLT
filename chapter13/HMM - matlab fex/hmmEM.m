@@ -23,10 +23,10 @@ llh = zeros(1,maxIter);
 for Q = 1:maxIter
     
     tic;
-    % determine parameters
+    % determine parameters, Expectation step (E)
     [gamma, epsilon, alpha, beta, c] = hmmSmoother_(O, lambda);
     rt = toc;
-    fprintf('Smoother took %f seconds on interation %d \n', rt, Q)
+    fprintf('Smoother took %f seconds on interation %.2f \n', rt, Q)
     
     
     % re-estimate pi
@@ -87,7 +87,7 @@ for Q = 1:maxIter
     end
     
     rt = toc;
-    fprintf('Baum Welch took %f seconds on interation %d \n', rt, Q)
+    fprintf('Baum Welch took %f seconds on interation %.2f \n', rt, Q)
     
 end %iter
 

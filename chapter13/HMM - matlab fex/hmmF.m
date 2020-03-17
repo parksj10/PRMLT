@@ -1,4 +1,4 @@
-function [opt, lambda, llh, viterbi] = hmmF(varargin)
+function [viterbi, opt, lambda, llh, logP] = hmmF(varargin)
 %HMMF - Fluxus implementation of HMM for photon data
 % Input:
 %   data - vector of binned data
@@ -193,7 +193,7 @@ opt = options;
 [viterbi, logP] = hmmViterbi_(data,lambda);
 
 %note the parameter of the poissons in B is found by sum(B(i,:).*[0:1:M-1])
-stop;
+% stop;
 
 end %hmmF
 

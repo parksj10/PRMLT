@@ -91,5 +91,5 @@ end %t
 
 %special case gamma
 for i = 1:N
-    gamma(i,t) = alpha(i,T);
+    gamma(i,T) = alpha(i,T);
 end
