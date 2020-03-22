@@ -1,0 +1,7 @@
+-I"Z:\Projects\Fluxus\PRMLT\chapter13\HMM - matlab fex\codegen\dll\hmmEM"
+-I"Z:\Projects\Fluxus\PRMLT\chapter13\HMM - matlab fex"
+-I"C:\Program Files\MATLAB\R2019b\extern\include"
+-I"C:\Program Files\MATLAB\R2019b\simulink\include"
+-I"C:\Program Files\MATLAB\R2019b\rtw\c\src"
+-I"C:\Program Files\MATLAB\R2019b\rtw\c\src\ext_mode\common"
+-I"C:\Program Files\MATLAB\R2019b\rtw\c\ert"

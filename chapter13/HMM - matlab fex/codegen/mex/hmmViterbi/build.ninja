@@ -1,0 +1,54 @@
+# CompilerName=msvc160
+# Mode=optim
+ninja_required_version = 1.3
+
+# Basic folders
+root = .
+builddir = $root\build\win64
+matlabdir = C:\Program Files\MATLAB\R2019b
+startdir = Z:\Projects\Fluxus\PRMLT\chapter13\HMM - matlab fex
+
+# Toolchain information
+cc = cl
+cxx = cl
+linker = link
+linkerxx = link
+
+cflags =  /c /Zp8 /GR /W3 /EHs /nologo /MD /D_CRT_SECURE_NO_DEPRECATE /D_SCL_SECURE_NO_DEPRECATE /D_SECURE_SCL=0   /DMATLAB_MEX_FILE  /DMATLAB_MEX_FILE /O2 /Oy- /DNDEBUG /fp:strict /I "$root" /I "$startdir" /I "$root\interface" /I "$matlabdir\extern\include" /I "$matlabdir\simulink\include" /I "$matlabdir\rtw\c\src" /I "$matlabdir\rtw\c\src\ext_mode\common" /I "$matlabdir\rtw\c\ert" /I "." -DMODEL=hmmViterbi_mex -DHAVESTDIO -DUSE_RTMODEL  
+
+cxxflags =   /c /Zp8 /GR /W3 /EHs /nologo /MD /D_CRT_SECURE_NO_DEPRECATE /D_SCL_SECURE_NO_DEPRECATE /D_SECURE_SCL=0   /DMATLAB_MEX_FILE  /DMATLAB_MEX_FILE /O2 /Oy- /DNDEBUG /fp:strict /I "$root" /I "$startdir" /I "$root\interface" /I "$matlabdir\extern\include" /I "$matlabdir\simulink\include" /I "$matlabdir\rtw\c\src" /I "$matlabdir\rtw\c\src\ext_mode\common" /I "$matlabdir\rtw\c\ert" /I "." -DMODEL=hmmViterbi_mex -DHAVESTDIO -DUSE_RTMODEL  
+
+ldflags =  /nologo /manifest   /DLL /LIBPATH:"$matlabdir\extern\lib\win64\microsoft" libmx.lib libmex.lib libmat.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /out:"hmmViterbi_mex.mexw64" libemlrt.lib libcovrt.lib libut.lib libmwmathutil.lib  /export:mexFunction /export:mexfilerequiredapiversion /export:emlrtMexFcnProperties /export:hmmViterbi_initialize /export:hmmViterbi_terminate /export:hmmViterbi_atexit /export:hmmViterbi /export:emlrt_marshallOut /export:emxEnsureCapacity_real_T /export:emxInit_real_T /export:emxFree_real_T /export:emxInitStruct_struct0_T /export:emxFreeStruct_struct0_T
+
+# Build Rules
+rule cc
+    command = $cc $cflags $in /Fo$out
+
+rule cxx
+    command = $cxx $cxxflags $in /Fo$out
+
+rule link
+    command = $linker @$out.rsp $ldflags
+    rspfile = $out.rsp
+    rspfile_content = $in
+
+rule linkxx
+    command = $linkerxx $in $ldflags
+
+# Build
+build $builddir\rt_nonfinite.obj : cc $root\rt_nonfinite.c
+build $builddir\hmmViterbi_mexutil.obj : cc $root\hmmViterbi_mexutil.c
+build $builddir\hmmViterbi_data.obj : cc $root\hmmViterbi_data.c
+build $builddir\hmmViterbi_initialize.obj : cc $root\hmmViterbi_initialize.c
+build $builddir\hmmViterbi_terminate.obj : cc $root\hmmViterbi_terminate.c
+build $builddir\hmmViterbi.obj : cc $root\hmmViterbi.c
+build $builddir\log.obj : cc $root\log.c
+build $builddir\eml_int_forloop_overflow_check.obj : cc $root\eml_int_forloop_overflow_check.c
+build $builddir\_coder_hmmViterbi_api.obj : cc $root\interface\_coder_hmmViterbi_api.c
+build $builddir\_coder_hmmViterbi_mex.obj : cc $root\interface\_coder_hmmViterbi_mex.c
+build $builddir\hmmViterbi_emxutil.obj : cc $root\hmmViterbi_emxutil.c
+build $builddir\_coder_hmmViterbi_info.obj : cc $root\interface\_coder_hmmViterbi_info.c
+build $builddir\c_mexapi_version.obj : cc $matlabdir\extern\version\c_mexapi_version.c
+
+# Link
+build $root\hmmViterbi_mex.mexw64 : link $builddir\rt_nonfinite.obj $builddir\hmmViterbi_mexutil.obj $builddir\hmmViterbi_data.obj $builddir\hmmViterbi_initialize.obj $builddir\hmmViterbi_terminate.obj $builddir\hmmViterbi.obj $builddir\log.obj $builddir\eml_int_forloop_overflow_check.obj $builddir\_coder_hmmViterbi_api.obj $builddir\_coder_hmmViterbi_mex.obj $builddir\hmmViterbi_emxutil.obj $builddir\_coder_hmmViterbi_info.obj $builddir\c_mexapi_version.obj 

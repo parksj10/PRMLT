@@ -19,7 +19,6 @@ function [viterbi, opt, lambda, llh, logP] = hmmF(varargin)
 %                                       e.g. max photon per bin - 1
 %                                           {v_k} = {0,1,2,...,Omax}
 %                                       *** include zero in vk -- max rate is 170
-% 'bin'             {1e-5}              Bin time, in seconds
 % 'a11'             {0.9999999}         Initial guess at staying background
 % 'aii'             {0.8}               Initial guess at staying in a given state
 % 'rate1'           {1}                 Initial guess at rate 1, i.e. background
@@ -51,7 +50,6 @@ if nargin==0 && nargout==0, help hmmF, return, end
 if nargin==0 || (nargin==1 && strcmpi('default',varargin(1)))
     opt.N = 4;
     opt.M = 171;
-    opt.bin = 1e-5;
     opt.a11 = 0.9999999;
     opt.aii = 0.8;
     opt.rate1 = 1;
@@ -99,7 +97,6 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
         value=varargin{i+1}; %   value of the option
         if     strncmp(name,'N',1), opt.N               = value;
         elseif strncmp(name,'M',1), opt.M               = value;
-        elseif strncmp(name,'bin',3), opt.bin           = value;
         elseif strncmp(name,'a11',3), opt.a11           = value;
         elseif strncmp(name,'aii',3), opt.aii           = value;
         elseif strncmp(name,'rate1',5), opt.rate1       = value;
@@ -116,7 +113,7 @@ elseif isstruct(varargin{1}) % Options=hmmF(Options,'Name','Value',...)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %       Pairs of Options
 elseif ischar(varargin{1})  % check for Options=hmmF('Name',Value,...)
-   Pnames=char('N','M','bin','a11','aii','rate1','rate2','lambda','maxIter','tol');
+   Pnames=char('N','M','a11','aii','rate1','rate2','lambda','maxIter','tol');
    if strncmpi(varargin{1},Pnames,length(varargin{1}))
       opt=hmmF('default');  % get default values
       opt=hmmF(opt,varargin{:});
@@ -154,7 +151,6 @@ else % debug
     
 opt.N = 4;
 opt.M = 171;
-opt.bin = 1e-5;
 opt.a11 = 0.9999999;
 opt.aii = 0.8;
 opt.rate1 = 1;
@@ -172,28 +168,32 @@ opt.lambda.B = vertcat(poisspdf(0:1:opt.M-1, opt.rate1),...
             ones(opt.N-1,opt.M).*poisspdf(0:1:(opt.M-1), opt.rate2));
 opt.lambda.pi = vertcat(opt.a11,ones(opt.N-1,1).*(1-opt.a11/(opt.N-1)));
 options = opt;
-data = readNPY('002_NP-Crstd@1E7npsml.npy')';
+% data = readNPY('002_NP-Crstd@1E7npsml.npy')';
 
 end % debug check
-
+load('input.mat');
 %% matlab index change
 data = data + 1; 
 
 %% save run options for output
 opt = options;
-
-% run baum-welch (EM) optimization
-% [lambdaO, llh] = hmmEm(data,opt.lambda);
-% [lambdaO.A, lambdaO.E] = hmmtrain(data,opt.lambda.A,opt.lambda.B);
+addpath ( genpath ( pwd ) )
+% % run baum-welch (EM) optimization
+% % [lambdaO, llh] = hmmEm(data,opt.lambda);
+% % [lambdaO.A, lambdaO.E] = hmmtrain(data,opt.lambda.A,opt.lambda.B);
 [lambda, llh] = hmmEM(data, opt.lambda, opt.maxIter, opt.tol);
+% 
+% % run viterbi decoding
+% % viterbi = hmmViterbi(data,lambdaO);
+% % [viterbi, logP] = hmmViterbi(data,lambdaO.A,lambdaO.B,lambdaO.pi);
+[viterbi, logP] = hmmViterbi(data,lambda);
 
-% run viterbi decoding
-% viterbi = hmmViterbi(data,lambdaO);
-% [viterbi, logP] = hmmViterbi(data,lambdaO.A,lambdaO.B,lambdaO.pi);
-[viterbi, logP] = hmmViterbi_(data,lambda);
+% C dll version
+% addpath ( genpath ( pwd ) )
+% loadlibrary('hmmEM.dll','hmmEM.h')
+% [lambda, llh] = calllib('hmmEM','hmmEM',data, opt.lambda, opt.maxIter, opt.tol, llh);
 
-%note the parameter of the poissons in B is found by sum(B(i,:).*[0:1:M-1])
-% stop;
+stop;
 
 end %hmmF
 

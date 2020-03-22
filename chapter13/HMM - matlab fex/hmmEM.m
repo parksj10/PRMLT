@@ -10,86 +10,45 @@ function [lambda, llh] = hmmEM(O, lambda, maxIter, tol)
 %   llh: loglikelihood of observation given model
 % Written by Mo Chen (sth4nth@gmail.com).
 
-% init with a model
-A = lambda.A;
-B = lambda.B;
-T = numel(O);
-pi = lambda.pi;
-[N, M] = size(B);
+% Prohibit inlining to reduce code size.
+coder.inline('never');
 
-iters = 0;
+T = numel(O);
+Q = int32(0);
 llh = zeros(1,maxIter);
-%loop over maxIter
-for Q = 1:maxIter
+
+% do until condition is met
+while 1
+    
+    % iteration counter
+    Q = Q + 1;
     
     tic;
     % determine parameters, Expectation step (E)
-    [gamma, epsilon, alpha, beta, c] = hmmSmoother_(O, lambda);
+    [gamma, xi, c] = hmmSmoother(O, lambda);
     rt = toc;
-    fprintf('Smoother took %f seconds on interation %.2f \n', rt, Q)
+    fprintf('Smoother took %.2f seconds on interation %d \n', rt, Q)
     
-    
-    % re-estimate pi
-    for i = 1:N
-        pi(i) = gamma(i,1);
-    end
-
     tic
-    % re-estimate A
-    for i = 1:N
-        denom = 0;
-        for t = 1:T-1
-            denom = denom + gamma(i,t);
-        end %t
-        for j = 1:N
-            numer = 0;
-            for t = 1:T-1
-                numer = numer + epsilon(i,j,t);
-            end %t
-            A(i,j) = numer/denom;
-        end %j
-    end %i
-
-    % re-estimate B
-    for j = 1:N
-        denom = 0;
-        for t = 1:T
-            denom = denom + gamma(j,t);
-        end %t
-        for k = 1:M
-            numer = 0;
-            for t = 1:T
-                if(O(t) == k)
-                    numer = numer + gamma(j,t);
-                end
-            end %t
-            B(j,k) = numer/denom;
-        end %k
-    end %i
-
+    % re-estimate parameters, Maximization step (M)
+    [lambda.A, lambda.B, lambda.pi] = hmmReestimate(O, lambda, gamma, xi);
+    rt = toc;
+    fprintf('Baum Welch took %.2f seconds on interation %d \n', rt, Q)
+    
     % compute log(P(O|lambda))
     for t = 1:T
         llh(Q) = llh(Q) + log(c(t));
     end %t
     llh(Q) = -llh(Q);
     
-    % iteration complete
-    iters = iters + 1;
-    lambda.A = A;
-    lambda.B = B;
-    lambda.pi = pi;
-    
     % break when tolerance or maxIter is reached
-    if (iters >= maxIter)
+    if (Q >= maxIter)
         return;
     elseif Q ~=1 && (llh(Q) < llh(Q-1) || abs(-llh(Q) + llh(Q-1)) <= tol)
         return;
     end
     
-    rt = toc;
-    fprintf('Baum Welch took %f seconds on interation %.2f \n', rt, Q)
-    
-end %iter
+end %while
 
 
 
